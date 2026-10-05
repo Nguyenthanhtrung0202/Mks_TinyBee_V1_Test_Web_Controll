@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+  <title>TinyBee • FAN Control</title>
+
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    :root {
+      --bg: #f5f5f7;
+      --card: #ffffff;
+      --text: #1d1d1f;
+      --secondary: #86868b;
+      --line: #eeeeef;
+      --green: #34c759;
+      --red: #ff3b30;
+      --gray: #e5e5ea;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "SF Pro Display",
+        "SF Pro Text",
+        "Segoe UI",
+        Arial,
+        sans-serif;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 30px 20px 40px;
+    }
+
+    .header {
+      margin-bottom: 22px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 31px;
+      line-height: 1.05;
+      font-weight: 700;
+      letter-spacing: -0.9px;
+    }
+
+    .header p {
+      margin: 7px 0 0;
+      font-size: 15px;
+      color: var(--secondary);
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 22px;
+      padding: 22px;
+      margin-bottom: 15px;
+      box-shadow:
+        0 1px 2px rgba(0,0,0,.03),
+        0 10px 30px rgba(0,0,0,.045);
+    }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .title {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -.25px;
+    }
+
+    .subtitle {
+      margin-top: 4px;
+      font-size: 14px;
+      color: var(--secondary);
+    }
+
+    /* iOS-style toggle */
+    .switch {
+      position: relative;
+      width: 62px;
+      height: 36px;
+      flex: 0 0 auto;
+    }
+
+    .switch input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .slider {
+      position: absolute;
+      inset: 0;
+      background: var(--gray);
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background .2s ease;
+    }
+
+    .slider::before {
+      content: "";
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      left: 3px;
+      top: 3px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 2px 5px rgba(0,0,0,.18);
+      transition:
+        transform .2s cubic-bezier(.4,0,.2,1);
+    }
+
+    .switch input:checked + .slider {
+      background: var(--green);
+    }
+
+    .switch input:checked + .slider::before {
+      transform: translateX(26px);
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      color: var(--secondary);
+      font-size: 14px;
+    }
+
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      margin-right: 9px;
+      border-radius: 50%;
+      background: #8e8e93;
+    }
+
+    .status-dot.on {
+      background: var(--green);
+      box-shadow: 0 0 0 4px rgba(52,199,89,.12);
+    }
+
+    .connection {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .connection-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #8e8e93;
+    }
+
+    .connection-dot.connected {
+      background: var(--green);
+    }
+
+    .connection-dot.error {
+      background: var(--red);
+    }
+
+    .info-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .info-row:first-child {
+      padding-top: 0;
+    }
+
+    .info-row:last-child {
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+
+    .label {
+      font-size: 14px;
+      color: var(--secondary);
+    }
+
+    .value {
+      max-width: 68%;
+      font-size: 14px;
+      font-weight: 500;
+      text-align: right;
+      word-break: break-word;
+    }
+
+    .footer {
+      margin-top: 8px;
+      text-align: center;
+      color: #a1a1a6;
+      font-size: 12px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <h1>TinyBee</h1>
+    <p>Remote Valve Control</p>
+  </div>
+
+
+  <!-- FAN1 -->
+  <div class="card">
+
+    <div class="control-row">
+
+      <div>
+        <div class="title">Solenoid Valve 1</div>
+        <div class="subtitle">FAN1 • IO147 • 24V / 0.85W</div>
+      </div>
+
+      <label class="switch">
+        <input id="fan1Switch" type="checkbox" disabled>
+        <span class="slider"></span>
+      </label>
+
+    </div>
+
+    <div class="status-row">
+      <div id="fan1Dot" class="status-dot"></div>
+      <div id="fan1Text">Van 1 đang đóng</div>
+    </div>
+
+  </div>
+
+
+  <!-- FAN2 -->
+  <div class="card">
+
+    <div class="control-row">
+
+      <div>
+        <div class="title">Solenoid Valve 2</div>
+        <div class="subtitle">FAN2 • IO148 • 24V / 0.85W</div>
+      </div>
+
+      <label class="switch">
+        <input id="fan2Switch" type="checkbox" disabled>
+        <span class="slider"></span>
+      </label>
+
+    </div>
+
+    <div class="status-row">
+      <div id="fan2Dot" class="status-dot"></div>
+      <div id="fan2Text">Van 2 đang đóng</div>
+    </div>
+
+  </div>
+
+
+  <!-- CONNECTION -->
+  <div class="card">
+
+    <div class="connection">
+      <span id="connectionDot" class="connection-dot"></span>
+      <span id="connectionText">Đang kết nối MQTT...</span>
+    </div>
+
+  </div>
+
+
+  <!-- INFO -->
+  <div class="card">
+
+    <div class="info-list">
+
+      <div class="info-row">
+        <div class="label">Device</div>
+        <div class="value">MKS TinyBee V1.0</div>
+      </div>
+
+      <div class="info-row">
+        <div class="label">FAN1</div>
+        <div class="value">IO147 / 74HC595</div>
+      </div>
+
+      <div class="info-row">
+        <div class="label">FAN2</div>
+        <div class="value">IO148 / 74HC595</div>
+      </div>
+
+      <div class="info-row">
+        <div class="label">Broker</div>
+        <div class="value">broker.hivemq.com</div>
+      </div>
+
+      <div class="info-row">
+        <div class="label">Protocol</div>
+        <div class="value">MQTT over WebSocket</div>
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <div class="footer">
+    TinyBee • FAN1 + FAN2 Test
+  </div>
+
+</div>
+
+
+<script>
+
+  // ============================================================
+  // MQTT
+  // ============================================================
+
+  const MQTT_URL =
+    "wss://broker.hivemq.com:8884/mqtt";
+
+  const FAN1_CMD_TOPIC =
+    "tinybee/test123/fan1/cmd";
+
+  const FAN2_CMD_TOPIC =
+    "tinybee/test123/fan2/cmd";
+
+  const FAN1_STATE_TOPIC =
+    "tinybee/test123/fan1/state";
+
+  const FAN2_STATE_TOPIC =
+    "tinybee/test123/fan2/state";
+
+  const CLIENT_ID =
+    "TinyBeeWeb-" +
+    Math.random().toString(16).slice(2, 10);
+
+
+  // ============================================================
+  // ELEMENTS
+  // ============================================================
+
+  const fan1Switch =
+    document.getElementById("fan1Switch");
+
+  const fan2Switch =
+    document.getElementById("fan2Switch");
+
+  const fan1Dot =
+    document.getElementById("fan1Dot");
+
+  const fan2Dot =
+    document.getElementById("fan2Dot");
+
+  const fan1Text =
+    document.getElementById("fan1Text");
+
+  const fan2Text =
+    document.getElementById("fan2Text");
+
+  const connectionDot =
+    document.getElementById("connectionDot");
+
+  const connectionText =
+    document.getElementById("connectionText");
+
+
+  // ============================================================
+  // UI STATE
+  // ============================================================
+
+  function updateFan1UI(isOn) {
+
+    fan1Switch.checked = isOn;
+
+    if (isOn) {
+      fan1Dot.classList.add("on");
+      fan1Text.textContent =
+        "Van 1 đang mở";
+    } else {
+      fan1Dot.classList.remove("on");
+      fan1Text.textContent =
+        "Van 1 đang đóng";
+    }
+  }
+
+
+  function updateFan2UI(isOn) {
+
+    fan2Switch.checked = isOn;
+
+    if (isOn) {
+      fan2Dot.classList.add("on");
+      fan2Text.textContent =
+        "Van 2 đang mở";
+    } else {
+      fan2Dot.classList.remove("on");
+      fan2Text.textContent =
+        "Van 2 đang đóng";
+    }
+  }
+
+
+  function setConnection(
+    type,
+    message
+  ) {
+
+    connectionDot.classList.remove(
+      "connected",
+      "error"
+    );
+
+    if (type === "connected") {
+      connectionDot.classList.add(
+        "connected"
+      );
+    }
+
+    if (type === "error") {
+      connectionDot.classList.add(
+        "error"
+      );
+    }
+
+    connectionText.textContent =
+      message;
+  }
+
+
+  // ============================================================
+  // MQTT CONNECT
+  // ============================================================
+
+  const client = mqtt.connect(
+    MQTT_URL,
+    {
+      clientId: CLIENT_ID,
+      clean: true,
+      connectTimeout: 10000,
+      reconnectPeriod: 3000
+    }
+  );
+
+
+  client.on(
+    "connect",
+    function () {
+
+      setConnection(
+        "connected",
+        "Đã kết nối MQTT"
+      );
+
+      fan1Switch.disabled = false;
+      fan2Switch.disabled = false;
+
+
+      client.subscribe(
+        FAN1_STATE_TOPIC
+      );
+
+      client.subscribe(
+        FAN2_STATE_TOPIC
+      );
+    }
+  );
+
+
+  client.on(
+    "reconnect",
+    function () {
+
+      fan1Switch.disabled = true;
+      fan2Switch.disabled = true;
+
+      setConnection(
+        "connecting",
+        "Đang kết nối lại..."
+      );
+    }
+  );
+
+
+  client.on(
+    "close",
+    function () {
+
+      fan1Switch.disabled = true;
+      fan2Switch.disabled = true;
+
+      setConnection(
+        "connecting",
+        "MQTT đã ngắt kết nối"
+      );
+    }
+  );
+
+
+  client.on(
+    "error",
+    function (err) {
+
+      fan1Switch.disabled = true;
+      fan2Switch.disabled = true;
+
+      setConnection(
+        "error",
+        "Lỗi MQTT"
+      );
+
+      console.error(
+        "MQTT error:",
+        err
+      );
+    }
+  );
+
+
+  // ============================================================
+  // RECEIVE STATE FROM TINYBEE
+  // ============================================================
+
+  client.on(
+    "message",
+    function (topic, payload) {
+
+      const state =
+        payload
+          .toString()
+          .trim()
+          .toUpperCase();
+
+      if (topic === FAN1_STATE_TOPIC) {
+        updateFan1UI(state === "ON");
+      }
+
+      else if (
+        topic === FAN2_STATE_TOPIC
+      ) {
+        updateFan2UI(state === "ON");
+      }
+    }
+  );
+
+
+  // ============================================================
+  // FAN1
+  // ============================================================
+
+  fan1Switch.addEventListener(
+    "change",
+    function () {
+
+      if (!client.connected) {
+        updateFan1UI(
+          !fan1Switch.checked
+        );
+        return;
+      }
+
+      const message =
+        fan1Switch.checked
+          ? "ON"
+          : "OFF";
+
+      client.publish(
+        FAN1_CMD_TOPIC,
+        message
+      );
+    }
+  );
+
+
+  // ============================================================
+  // FAN2
+  // ============================================================
+
+  fan2Switch.addEventListener(
+    "change",
+    function () {
+
+      if (!client.connected) {
+        updateFan2UI(
+          !fan2Switch.checked
+        );
+        return;
+      }
+
+      const message =
+        fan2Switch.checked
+          ? "ON"
+          : "OFF";
+
+      client.publish(
+        FAN2_CMD_TOPIC,
+        message
+      );
+    }
+  );
+
+
+  // Safe initial UI
+  updateFan1UI(false);
+  updateFan2UI(false);
+
+</script>
+
+</body>
+</html>
