@@ -22,23 +22,23 @@
     <section class="grid">
       <div>
         <article class="card">
-          <div class="section-head"><div><h2>Di chuyển</h2><p>Nhập số step tương đối cho từng trục. Số âm chạy ngược chiều.</p></div><div id="liveState" class="live-state">Chờ board</div></div>
-          <div class="axis-inputs"><div class="field"><label>X · STEP</label><input class="axis" type="number" value="0"></div><div class="field"><label>Y · STEP</label><input class="axis" type="number" value="0"></div><div class="field"><label>Z · STEP</label><input class="axis" type="number" value="0"></div><div class="field"><label>E0 · STEP</label><input class="axis" type="number" value="0"></div><div class="field"><label>E1 · STEP</label><input class="axis" type="number" value="0"></div></div>
+          <div class="section-head"><div><h2>Di chuyển tuyệt đối</h2><p>Nhập tọa độ đích theo mm, tính từ mốc Home. Board chặn lệnh vượt hành trình đã cấu hình.</p></div><div id="liveState" class="live-state">Chờ board</div></div>
+          <div class="axis-inputs"><div class="field"><label>X · MM</label><input class="axis" type="number" min="0" step="0.01" value="0"></div><div class="field"><label>Y · MM</label><input class="axis" type="number" min="0" step="0.01" value="0"></div><div class="field"><label>Z · MM</label><input class="axis" type="number" min="0" step="0.01" value="0"></div><div class="field"><label>E0 · MM</label><input class="axis" type="number" min="0" step="0.01" value="0"></div><div class="field"><label>E1 · MM</label><input class="axis" type="number" min="0" step="0.01" value="0"></div></div>
           <div class="settings"><div class="field"><label>TỐC ĐỘ TỐI ĐA · STEP/S</label><input id="speed" type="number" min="1" max="20000" value="5000"></div><div class="field"><label>GIA TỐC · STEP/S²</label><input id="acceleration" type="number" min="0" max="100000" value="20000"></div></div>
           <div class="actions"><button class="primary" onclick="moveOnce()">Chạy chuyển động</button><button class="stop" onclick="send('STOP')">Dừng</button></div>
         </article>
         <article class="card queue-card">
-          <div class="section-head"><div><h2>Hàng đợi</h2><p>Mỗi nhóm gồm năm số theo thứ tự X, Y, Z, E0, E1.</p></div></div>
+          <div class="section-head"><div><h2>Hàng đợi tuyệt đối</h2><p>Mỗi nhóm là tọa độ đích mm theo thứ tự X, Y, Z, E0, E1.</p></div></div>
           <textarea id="queue" spellcheck="false">10 15 18 30 40| -10 0 0 0 0</textarea>
           <div class="queue-actions"><span>Dùng dấu <b>|</b> để phân tách các lệnh.</span><button class="send" onclick="sendQueue()">Gửi hàng đợi</button></div>
         </article>
       </div>
       <aside class="card">
-        <div class="section-head"><div><h2>Vị trí hiện tại</h2><p>Vị trí tương đối theo số xung đã phát.</p></div><button class="quiet" onclick="send('STATUS')">Làm mới</button></div>
-        <ul class="positions"><li><b>X axis</b><span id="pos0">0 step</span></li><li><b>Y axis</b><span id="pos1">0 step</span></li><li><b>Z axis</b><span id="pos2">0 step</span></li><li><b>E0 axis</b><span id="pos3">0 step</span></li><li><b>E1 axis</b><span id="pos4">0 step</span></li></ul>
+        <div class="section-head"><div><h2>Vị trí hiện tại</h2><p>Tọa độ mm tính từ mốc Home.</p></div><button class="quiet" onclick="send('STATUS')">Làm mới</button></div>
+        <ul class="positions"><li><b>X axis</b><span id="pos0">0.000 mm</span></li><li><b>Y axis</b><span id="pos1">0.000 mm</span></li><li><b>Z axis</b><span id="pos2">0.000 mm</span></li><li><b>E0 axis</b><span id="pos3">0.000 mm</span></li><li><b>E1 axis</b><span id="pos4">0.000 mm</span></li></ul>
         <div class="status-box"><label>TRẠNG THÁI</label><strong id="motion">Đang chờ trạng thái từ TinyBee.</strong></div>
-        <div class="position-actions"><button class="quiet" onclick="resetPosition()">Đặt vị trí về 0</button><button id="queueToggle" class="quiet" onclick="toggleQueue()">Tạm dừng hàng đợi</button></div>
-        <p class="about">TinyBee tự tạo STEP và điều phối nội suy các trục. Web chỉ gửi thông số chuyển động.</p>
+        <div class="position-actions"><button class="quiet" onclick="setHome()">Đặt Home tại đây</button><button id="queueToggle" class="quiet" onclick="toggleQueue()">Tạm dừng hàng đợi</button></div>
+        <p class="about">Đặt Home khi máy ở mốc cơ khí mong muốn. Không có encoder/homing sensor nên tắt nguồn sẽ mất mốc Home.</p>
       </aside>
     </section>
   </main>
@@ -50,12 +50,12 @@
     function boardPresence(online){connection(online?'TinyBee đang trực tuyến':'TinyBee đang ngoại tuyến',online?'online':'error')}
     function send(command){if(!client.connected)return alert('MQTT chưa kết nối.');client.publish(COMMAND_TOPIC,command)}
     function settings(){const speed=Math.min(20000,Math.max(1,Number($('speed').value)||5000)),accel=Math.min(100000,Math.max(0,Number($('acceleration').value)||0));$('speed').value=speed;$('acceleration').value=accel;send('SPEED '+speed);send('ACCEL '+accel)}
-    function moveOnce(){settings();send([...document.querySelectorAll('.axis')].map(item=>parseInt(item.value,10)||0).join(' '))}
+    function moveOnce(){settings();send([...document.querySelectorAll('.axis')].map(item=>Number(item.value)||0).join(' '))}
     function sendQueue(){const commands=$('queue').value.trim();if(!commands)return;if(!commands.split('|').every(part=>part.trim().split(/\s+/).length===5))return alert('Mỗi lệnh phải gồm đúng năm số: X Y Z E0 E1.');settings();send(commands)}
-    function resetPosition(){if(confirm('Đặt lại vị trí tương đối của cả năm trục về 0?'))send('ZERO')}
+    function setHome(){if(confirm('Đặt vị trí hiện tại làm Home 0 mm cho cả năm trục?'))send('HOME')}
     function toggleQueue(){send(queuePaused?'RESUME':'PAUSE')}
     client.on('connect',()=>{connection('Đã kết nối máy chủ MQTT');client.subscribe([STATE_TOPIC,AVAILABILITY_TOPIC])});client.on('reconnect',()=>connection('Đang kết nối lại'));client.on('close',()=>connection('Đã ngắt máy chủ MQTT'));client.on('error',()=>connection('Lỗi MQTT','error'));
-    client.on('message',(topic,payload)=>{if(topic===AVAILABILITY_TOPIC){boardPresence(payload.toString()==='online');return}if(topic!==STATE_TOPIC)return;try{const state=JSON.parse(payload.toString());queuePaused=!!state.paused;state.position.forEach((value,index)=>$('pos'+index).textContent=value+' step');$('speed').value=state.maxSpeed;$('acceleration').value=state.acceleration;$('liveState').textContent=state.paused?'Đang tạm dừng':state.moving?'Đang chạy':'Sẵn sàng';$('motion').textContent=(state.enabled?'Driver bật':'Driver tắt')+' · '+(state.paused?'Hàng đợi tạm dừng':state.queue+' lệnh chờ')+' · '+state.remaining+' step còn lại';$('queueToggle').textContent=state.paused?'Tiếp tục hàng đợi':'Tạm dừng hàng đợi'}catch(error){console.error(error)}});
+    client.on('message',(topic,payload)=>{if(topic===AVAILABILITY_TOPIC){boardPresence(payload.toString()==='online');return}if(topic!==STATE_TOPIC)return;try{const state=JSON.parse(payload.toString());queuePaused=!!state.paused;state.position.forEach((value,index)=>$('pos'+index).textContent=Number(value).toFixed(3)+' mm');$('speed').value=state.maxSpeed;$('acceleration').value=state.acceleration;$('liveState').textContent=state.paused?'Đang tạm dừng':state.moving?'Đang chạy':'Sẵn sàng';$('motion').textContent=(state.enabled?'Driver bật':'Driver tắt')+' · '+(state.paused?'Hàng đợi tạm dừng':state.queue+' lệnh chờ')+' · '+state.remaining+' step còn lại';$('queueToggle').textContent=state.paused?'Tiếp tục hàng đợi':'Tạm dừng hàng đợi'}catch(error){console.error(error)}});
   </script>
 </body>
 </html>
