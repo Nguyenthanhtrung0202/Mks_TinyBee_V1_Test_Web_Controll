@@ -1,13 +1,94 @@
-<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TinyBee 5 trục</title><script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script><style>
-*{box-sizing:border-box}body{margin:0;background:#f5f5f7;color:#1d1d1f;font:16px system-ui,sans-serif}.wrap{max-width:740px;margin:auto;padding:26px 18px}.card{background:#fff;border-radius:18px;padding:20px;margin:14px 0;box-shadow:0 5px 22px #0000000d}h1{margin:0;font-size:29px}p,.muted{color:#6e6e73}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#8e8e93;margin-right:7px}.ok{background:#34c759}.bad{background:#ff3b30}label{display:block;font-size:13px;color:#6e6e73;margin-bottom:6px}input,textarea{width:100%;border:1px solid #ddd;border-radius:10px;padding:11px;font:inherit;background:#fafafa}textarea{min-height:96px;resize:vertical}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.axes{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}.buttons{display:flex;gap:10px;margin-top:14px}button{border:0;border-radius:11px;padding:12px 15px;background:#007aff;color:#fff;font-weight:650;font-size:15px;cursor:pointer}.stop{background:#ff3b30}.status{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.axis{background:#f5f5f7;padding:10px;border-radius:10px;text-align:center}.axis b{display:block;font-size:12px;color:#6e6e73;margin-bottom:4px}.note{font-size:13px;line-height:1.5;color:#6e6e73}@media(max-width:500px){.axes,.status{grid-template-columns:repeat(2,1fr)}}
-</style></head><body><main class="wrap"><h1>TinyBee · 5 trục</h1><p><span id="dot" class="dot"></span><span id="connection">Đang kết nối MQTT…</span></p>
-<section class="card"><div class="grid"><div><label>Tốc độ tối đa (step/s)</label><input id="speed" type="number" min="1" max="20000" value="5000"></div><div><label>Gia tốc (step/s²)</label><input id="accel" type="number" min="1" max="100000" value="20000"></div></div><div class="axes" style="margin-top:14px"><div><label>X</label><input class="single" value="0"></div><div><label>Y</label><input class="single" value="0"></div><div><label>Z</label><input class="single" value="0"></div><div><label>E0</label><input class="single" value="0"></div><div><label>E1</label><input class="single" value="0"></div></div><div class="buttons"><button onclick="sendSingle()">Chạy 1 lệnh</button><button class="stop" onclick="send('STOP')">DỪNG</button></div></section>
-<section class="card"><label>Hàng đợi lệnh (5 số có dấu: X Y Z E0 E1)</label><textarea id="commands" spellcheck="false">10 15 18 30 40| -10 0 0 0 0</textarea><div class="buttons"><button onclick="sendQueue()">Gửi hàng đợi</button><button onclick="send('ZERO')">Đặt lại vị trí</button></div><p class="note">Ví dụ <code>10 15 18 30 40| -10 0 0 0 0</code>: mỗi nhóm là một chuyển động tương đối. Dấu âm đảo chiều. Các trục trong cùng nhóm khởi động và kết thúc đồng thời; board tự phát xung STEP.</p></section>
-<section class="card"><div class="status"><div class="axis"><b>X</b><span id="p0">0</span></div><div class="axis"><b>Y</b><span id="p1">0</span></div><div class="axis"><b>Z</b><span id="p2">0</span></div><div class="axis"><b>E0</b><span id="p3">0</span></div><div class="axis"><b>E1</b><span id="p4">0</span></div></div><p class="muted" id="motion">Chưa có trạng thái.</p></section></main><script>
-const TOPIC='tinybee/test123/axes/cmd',STATE='tinybee/test123/axes/state';const $=id=>document.getElementById(id);const dot=$('dot'),ct=$('connection');
-const client=mqtt.connect('wss://broker.hivemq.com:8884/mqtt',{clientId:'TinyBee5Web-'+Math.random().toString(16).slice(2),reconnectPeriod:3000});
-function status(ok,text){dot.className='dot '+(ok?'ok':'bad');ct.textContent=text}function send(text){if(!client.connected)return alert('MQTT chưa kết nối.');client.publish(TOPIC,text)}
-client.on('connect',()=>{status(true,'Đã kết nối MQTT');client.subscribe(STATE);send('STATUS')});client.on('reconnect',()=>status(false,'Đang kết nối lại…'));client.on('close',()=>status(false,'MQTT đã ngắt'));client.on('error',()=>status(false,'Lỗi MQTT'));
-client.on('message',(topic,payload)=>{if(topic!==STATE)return;try{let d=JSON.parse(payload);d.position.forEach((v,i)=>$('p'+i).textContent=v);$('motion').textContent=(d.moving?'Đang chạy':'Dừng')+' · còn '+d.remaining+' step · '+d.speed+' step/s · hàng đợi '+d.queue}catch(e){console.error(e)}});
-function settings(){let s=Math.max(1,Math.min(20000,Number($('speed').value)||5000)),a=Math.max(1,Math.min(100000,Number($('accel').value)||20000));send('SPEED '+s);send('ACCEL '+a)}function sendSingle(){settings();send([...document.querySelectorAll('.single')].map(x=>parseInt(x.value)||0).join(' '))}function sendQueue(){settings();let q=$('commands').value.trim();if(!q)return;let valid=q.split('|').every(x=>x.trim().split(/\s+/).length===5);if(!valid)return alert('Mỗi lệnh phải gồm đúng 5 số.');send(q)}
-</script></body></html>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TinyBee Motion</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <style>
+    :root{--bg:#f5f5f7;--card:#fff;--text:#1d1d1f;--muted:#86868b;--line:#e8e8ed;--blue:#007aff;--red:#ff3b30;--green:#34c759}
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font:15px -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif}
+    main{max-width:560px;margin:auto;padding:32px 20px 44px}
+    header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px}h1{font-size:30px;letter-spacing:-.8px;margin:0}header p{color:var(--muted);margin:6px 0 0}
+    .status{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:13px}.dot{width:8px;height:8px;border-radius:50%;background:#8e8e93}.dot.online{background:var(--green)}.dot.error{background:var(--red)}
+    .card{background:var(--card);border-radius:20px;padding:20px;margin-bottom:14px;box-shadow:0 1px 2px #00000008}.card-title{font-weight:600;font-size:17px;margin-bottom:4px}.caption{font-size:13px;color:var(--muted);line-height:1.45}
+    .axes{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:18px}.field label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px}input,textarea{width:100%;border:1px solid var(--line);border-radius:11px;background:#fafafa;color:var(--text);font:inherit;outline:none}input{padding:11px 8px;text-align:center}input:focus,textarea:focus{border-color:var(--blue);background:#fff}textarea{min-height:88px;padding:12px;resize:vertical;line-height:1.45}
+    .settings{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.settings input{text-align:left}.buttons{display:flex;gap:10px;margin-top:14px}button{border:0;border-radius:12px;padding:12px 15px;background:var(--blue);color:#fff;font:600 15px inherit;cursor:pointer;flex:1}button:active{transform:scale(.98)}button.stop{background:var(--red)}button.secondary{background:#f2f2f7;color:var(--text)}
+    .positions{display:grid;grid-template-columns:repeat(5,1fr);margin-top:16px;border:1px solid var(--line);border-radius:13px;overflow:hidden}.position{text-align:center;padding:11px 4px;border-right:1px solid var(--line)}.position:last-child{border:0}.position b{display:block;color:var(--muted);font-size:11px;margin-bottom:3px}.position span{font-variant-numeric:tabular-nums;font-size:14px}.motion{font-size:13px;color:var(--muted);margin:14px 0 0}.help{font-size:12px;line-height:1.5;color:var(--muted);margin:13px 0 0}code{font:12px ui-monospace,monospace;color:#505057}@media(max-width:420px){main{padding:24px 15px}.axes,.positions{grid-template-columns:repeat(3,1fr)}.position:nth-child(3){border-right:0}.position:nth-child(-n+3){border-bottom:1px solid var(--line)}}
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div><h1>TinyBee</h1><p>Điều khiển chuyển động 5 trục</p></div>
+      <div class="status"><i id="dot" class="dot"></i><span id="connection">Đang kết nối</span></div>
+    </header>
+
+    <section class="card">
+      <div class="card-title">Di chuyển</div>
+      <div class="caption">Nhập số step tương đối. Số âm chạy ngược chiều.</div>
+      <div class="axes">
+        <div class="field"><label>X</label><input class="axis" type="number" value="0"></div>
+        <div class="field"><label>Y</label><input class="axis" type="number" value="0"></div>
+        <div class="field"><label>Z</label><input class="axis" type="number" value="0"></div>
+        <div class="field"><label>E0</label><input class="axis" type="number" value="0"></div>
+        <div class="field"><label>E1</label><input class="axis" type="number" value="0"></div>
+      </div>
+      <div class="settings">
+        <div class="field"><label>Tốc độ tối đa · step/s</label><input id="speed" type="number" min="1" max="20000" value="5000"></div>
+        <div class="field"><label>Gia tốc · step/s²</label><input id="acceleration" type="number" min="1" max="100000" value="20000"></div>
+      </div>
+      <div class="buttons"><button onclick="moveOnce()">Chạy</button><button class="stop" onclick="send('STOP')">Dừng</button></div>
+    </section>
+
+    <section class="card">
+      <div class="card-title">Hàng đợi</div>
+      <div class="caption">Mỗi nhóm gồm X Y Z E0 E1, phân cách bằng dấu <code>|</code>.</div>
+      <textarea id="queue" spellcheck="false" aria-label="Hàng đợi lệnh">10 15 18 30 40| -10 0 0 0 0</textarea>
+      <div class="buttons"><button onclick="sendQueue()">Gửi hàng đợi</button><button class="secondary" onclick="send('ZERO')">Đặt vị trí 0</button></div>
+      <p class="help">Ví dụ: <code>10 15 18 30 40| -10 0 0 0 0</code>. TinyBee tự phát STEP; trình duyệt chỉ gửi thông số.</p>
+    </section>
+
+    <section class="card">
+      <div class="card-title">Trạng thái</div>
+      <div class="positions">
+        <div class="position"><b>X</b><span id="pos0">0</span></div><div class="position"><b>Y</b><span id="pos1">0</span></div><div class="position"><b>Z</b><span id="pos2">0</span></div><div class="position"><b>E0</b><span id="pos3">0</span></div><div class="position"><b>E1</b><span id="pos4">0</span></div>
+      </div>
+      <p id="motion" class="motion">Đang chờ trạng thái từ board.</p>
+    </section>
+  </main>
+
+  <script>
+    // Trang này là static và dùng được trực tiếp trên GitHub Pages.
+    const MQTT_URL = 'wss://broker.hivemq.com:8884/mqtt';
+    const COMMAND_TOPIC = 'tinybee/test123/axes/cmd';
+    const STATE_TOPIC = 'tinybee/test123/axes/state';
+    const $ = id => document.getElementById(id);
+    const client = mqtt.connect(MQTT_URL, { clientId: 'tinybee-web-' + crypto.getRandomValues(new Uint32Array(1))[0].toString(16), clean: true, reconnectPeriod: 3000 });
+
+    function connection(text, state) { $('connection').textContent = text; $('dot').className = 'dot ' + state; }
+    function send(command) { if (!client.connected) return alert('MQTT chưa kết nối.'); client.publish(COMMAND_TOPIC, command); }
+    function applySettings() {
+      const speed = Math.min(20000, Math.max(1, Number($('speed').value) || 5000));
+      const accel = Math.min(100000, Math.max(1, Number($('acceleration').value) || 20000));
+      send('SPEED ' + speed); send('ACCEL ' + accel);
+    }
+    function moveOnce() { applySettings(); send([...document.querySelectorAll('.axis')].map(item => parseInt(item.value, 10) || 0).join(' ')); }
+    function sendQueue() {
+      const commands = $('queue').value.trim();
+      if (!commands) return;
+      if (!commands.split('|').every(part => part.trim().split(/\s+/).length === 5)) return alert('Mỗi lệnh phải có đúng 5 số: X Y Z E0 E1.');
+      applySettings(); send(commands);
+    }
+    client.on('connect', () => { connection('Đã kết nối', 'online'); client.subscribe(STATE_TOPIC); send('STATUS'); });
+    client.on('reconnect', () => connection('Đang kết nối lại', ''));
+    client.on('close', () => connection('Đã ngắt', ''));
+    client.on('error', () => connection('Lỗi MQTT', 'error'));
+    client.on('message', (topic, payload) => {
+      if (topic !== STATE_TOPIC) return;
+      try { const state = JSON.parse(payload.toString()); state.position.forEach((value, index) => $('pos' + index).textContent = value); $('motion').textContent = (state.moving ? 'Đang chạy' : 'Đã dừng') + ' · còn ' + state.remaining + ' step · ' + state.speed + ' step/s · hàng đợi ' + state.queue; } catch (error) { console.error(error); }
+    });
+  </script>
+</body>
+</html>
