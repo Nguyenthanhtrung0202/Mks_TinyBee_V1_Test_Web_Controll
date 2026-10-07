@@ -38,17 +38,18 @@
     </section>
   </main>
   <script>
-    const MQTT_URL='wss://broker.hivemq.com:8884/mqtt',COMMAND_TOPIC='tinybee/test123/axes/cmd',STATE_TOPIC='tinybee/test123/axes/state'; const $=id=>document.getElementById(id),format=value=>Number(value).toLocaleString('en-US');
+    const MQTT_URL='wss://broker.hivemq.com:8884/mqtt',COMMAND_TOPIC='tinybee/test123/axes/cmd',STATE_TOPIC='tinybee/test123/axes/state',AVAILABILITY_TOPIC='tinybee/test123/axes/availability'; const $=id=>document.getElementById(id),format=value=>Number(value).toLocaleString('en-US');
     const client=mqtt.connect(MQTT_URL,{clientId:'tinybee-web-'+crypto.getRandomValues(new Uint32Array(1))[0].toString(16),clean:true,reconnectPeriod:3000});
     function connection(text,state=''){ $('connection').textContent=text;$('statusText').textContent=text;$('dot').className='dot '+state; }
+    function boardPresence(online){ connection(online ? 'TinyBee đang trực tuyến' : 'TinyBee đang ngoại tuyến', online ? 'online' : 'error'); }
     function syncSpeed(value){value=Math.min(20000,Math.max(1,Number(value)||5000));$('speed').value=value;$('speedSlider').value=value;$('speedReadout').textContent=format(value)}
     function syncAccel(value){value=Math.min(100000,Math.max(1,Number(value)||20000));$('acceleration').value=value;$('tileAccel').textContent=format(value)+' step/s²'}
     function send(command){if(!client.connected)return alert('MQTT chưa kết nối.');client.publish(COMMAND_TOPIC,command)}
     function settings(){const speed=Math.min(20000,Math.max(1,Number($('speed').value)||5000)),accel=Math.min(100000,Math.max(1,Number($('acceleration').value)||20000));syncSpeed(speed);syncAccel(accel);send('SPEED '+speed);send('ACCEL '+accel)}
     function moveOnce(){settings();send([...document.querySelectorAll('.axis')].map(item=>parseInt(item.value,10)||0).join(' '))}
     function sendQueue(){const commands=$('queue').value.trim();if(!commands)return;if(!commands.split('|').every(part=>part.trim().split(/\s+/).length===5))return alert('Mỗi lệnh phải gồm đúng năm số: X Y Z E0 E1.');settings();send(commands)}
-    client.on('connect',()=>{connection('TinyBee đã kết nối','online');client.subscribe(STATE_TOPIC);send('STATUS')});client.on('reconnect',()=>connection('Đang kết nối lại'));client.on('close',()=>connection('Đã ngắt kết nối'));client.on('error',()=>connection('Lỗi MQTT','error'));
-    client.on('message',(topic,payload)=>{if(topic!==STATE_TOPIC)return;try{const state=JSON.parse(payload.toString());state.position.forEach((value,index)=>$('pos'+index).textContent=value+' step');$('motionValue').innerHTML=state.speed+'<small>step / giây</small>';$('motion').textContent=(state.moving?'Đang chạy':'Sẵn sàng')+' · còn '+state.remaining+' step · '+state.speed+' step/s';$('tileMotion').textContent=state.moving?'Đang chạy':'Sẵn sàng';$('tileQueue').textContent=state.queue+' lệnh chờ';syncSpeed(state.maxSpeed);syncAccel(state.acceleration)}catch(error){console.error(error)}});
+    client.on('connect',()=>{connection('Đã kết nối máy chủ MQTT');client.subscribe([STATE_TOPIC,AVAILABILITY_TOPIC])});client.on('reconnect',()=>connection('Đang kết nối lại'));client.on('close',()=>connection('Đã ngắt máy chủ MQTT'));client.on('error',()=>connection('Lỗi MQTT','error'));
+    client.on('message',(topic,payload)=>{if(topic===AVAILABILITY_TOPIC){boardPresence(payload.toString()==='online');return}if(topic!==STATE_TOPIC)return;try{const state=JSON.parse(payload.toString());state.position.forEach((value,index)=>$('pos'+index).textContent=value+' step');$('motionValue').innerHTML=state.speed+'<small>step / giây</small>';$('motion').textContent=(state.moving?'Đang chạy':'Sẵn sàng')+' · còn '+state.remaining+' step · '+state.speed+' step/s';$('tileMotion').textContent=state.moving?'Đang chạy':'Sẵn sàng';$('tileQueue').textContent=state.queue+' lệnh chờ';syncSpeed(state.maxSpeed);syncAccel(state.acceleration)}catch(error){console.error(error)}});
   </script>
 </body>
 </html>
