@@ -3,84 +3,54 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TinyBee Motion</title>
+  <title>TinyBee Control</title>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <style>
-    :root{--ink:#171717;--soft:#666;--line:#d7d7d7;--paper:#fff}
-    *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:14px Arial,sans-serif}main{max-width:720px;margin:auto;padding:52px 24px}header{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid var(--ink);padding-bottom:16px;margin-bottom:32px}h1{font-size:22px;font-weight:700;letter-spacing:.02em;margin:0;text-transform:uppercase}header p{display:none}.status{font-size:12px;color:var(--soft)}.dot{display:none}.card{padding:0 0 28px;margin:0 0 28px;border-bottom:1px solid var(--line)}.card-title{font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}.caption,.help,.motion{font-size:12px;line-height:1.55;color:var(--soft)}.axes{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:18px}.field label{display:block;font-size:11px;font-weight:700;margin:0 0 6px}input,textarea{width:100%;border:1px solid var(--ink);border-radius:0;background:#fff;color:var(--ink);font:14px ui-monospace,Consolas,monospace;outline:none}input{padding:10px 7px;text-align:center}textarea{min-height:96px;padding:11px;resize:vertical;line-height:1.5}input:focus,textarea:focus{outline:2px solid var(--ink);outline-offset:2px}.settings{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}.settings input{text-align:left}.buttons{display:flex;gap:8px;margin-top:16px}button{border:1px solid var(--ink);border-radius:0;padding:10px 14px;background:var(--ink);color:#fff;font:700 12px Arial,sans-serif;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;flex:1}button:active{background:#555}.stop,.secondary{background:#fff;color:var(--ink)}.positions{display:grid;grid-template-columns:repeat(5,1fr);margin-top:17px;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink)}.position{text-align:center;padding:10px 3px;border-right:1px solid var(--line)}.position:last-child{border:0}.position b{display:block;font-size:10px;letter-spacing:.04em;margin-bottom:5px}.position span{font:14px ui-monospace,Consolas,monospace}.motion{margin:14px 0 0}code{font:12px ui-monospace,monospace;color:var(--ink)}@media(max-width:460px){main{padding:34px 16px}.axes{grid-template-columns:repeat(3,1fr)}.positions{grid-template-columns:repeat(3,1fr)}.position:nth-child(3){border-right:0}.position:nth-child(-n+3){border-bottom:1px solid var(--line)}}
+    :root{--bg:#f1f1f3;--paper:#fff;--ink:#1d1d20;--soft:#8e8e94;--line:#ececef;--dark:#262628;--green:#48aa7a;--shadow:0 10px 30px rgba(27,27,30,.045)}
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}body{margin:0;background:var(--bg);color:var(--ink);font:13px Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.app{min-height:100vh;display:flex}
+    aside{width:210px;background:var(--paper);padding:28px 16px;display:flex;flex-direction:column;flex-shrink:0}.brand{font-size:20px;font-weight:750;letter-spacing:-.8px;padding:0 10px 33px}.nav{display:grid;gap:4px}.nav a{display:flex;align-items:center;gap:11px;padding:10px;border-radius:10px;color:#737378;text-decoration:none;font-weight:500}.nav a.active{background:#f1f1f3;color:var(--ink);font-weight:650}.icon{width:16px;text-align:center;font-size:15px}.nav-foot{margin-top:auto;border-top:1px solid var(--line);padding-top:16px}.mqtt-state{margin:18px 8px 0;padding:13px;border-radius:13px;background:#f4f4f5;color:#69696e;font-size:11px;line-height:1.45}.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#aaa;margin-right:5px}.dot.online{background:var(--green)}.dot.error{background:#888}
+    main{width:100%;max-width:1240px;padding:30px 34px 42px;margin:0 auto}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px}.top h1{font-size:24px;letter-spacing:-.75px;margin:0}.top p{color:var(--soft);margin:5px 0 0}.profile{width:34px;height:34px;border-radius:50%;background:linear-gradient(145deg,#e2c4ae,#6c554b);border:3px solid #fff;box-shadow:0 2px 7px #0002}
+    .summary{display:grid;grid-template-columns:1.3fr repeat(3,1fr);gap:14px;margin-bottom:16px}.metric{height:120px;background:var(--paper);border-radius:17px;padding:18px;box-shadow:var(--shadow)}.metric.primary{background:linear-gradient(135deg,#212123,#3b3b3e);color:#fff}.metric-label{color:var(--soft);font-size:11px}.primary .metric-label{color:#c7c7c9}.metric-value{font-size:25px;letter-spacing:-1px;font-weight:720;margin-top:11px}.metric-note{margin-top:6px;color:var(--soft);font-size:10px}.metric-note b{color:var(--green);font-weight:650}.primary .metric-note{color:#bbb}
+    .layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(270px,.85fr);gap:16px}.card{background:var(--paper);border-radius:17px;padding:20px;box-shadow:var(--shadow)}.title-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.title-row h2{font-size:14px;margin:0;letter-spacing:-.15px}.pill{border:0;background:#f1f1f3;border-radius:20px;padding:7px 11px;color:#666;font:600 11px inherit;cursor:pointer}.pill.dark{background:var(--dark);color:#fff}.move-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}.field label{display:block;font-size:10px;color:var(--soft);margin:0 0 6px;font-weight:600}input,textarea{width:100%;border:1px solid var(--line);border-radius:10px;background:#fafafa;color:var(--ink);font:13px inherit;outline:none}input{padding:11px 8px;text-align:center}input:focus,textarea:focus{background:#fff;border-color:#bcbcc1}.settings{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.settings input{text-align:left}.actions{display:flex;gap:8px;margin-top:16px}button{border:0;border-radius:10px;padding:11px 13px;background:var(--dark);color:#fff;font:650 12px inherit;cursor:pointer;flex:1}button:hover{opacity:.88}button.ghost{background:#f1f1f3;color:#4d4d52}.queue-card{margin-top:16px}textarea{min-height:76px;padding:11px;resize:vertical;line-height:1.45}.hint{font-size:10px;line-height:1.55;color:var(--soft);margin:10px 0 0}.position-table{border:1px solid var(--line);border-radius:12px;overflow:hidden}.position{display:flex;justify-content:space-between;padding:13px;border-bottom:1px solid var(--line)}.position:last-child{border:0}.position b{font-size:11px}.position span{font-variant-numeric:tabular-nums;color:var(--soft)}.live{margin-top:16px;padding:14px;border-radius:12px;background:#f6f6f7}.live label{display:block;color:var(--soft);font-size:10px;margin-bottom:5px}.live strong{font-size:13px;font-weight:600}.divider{height:1px;background:var(--line);margin:17px 0}.axis-list{display:flex;gap:6px}.axis-list span{font-size:10px;color:#777;background:#f3f3f4;padding:5px 7px;border-radius:6px}
+    @media(max-width:850px){aside{width:72px;padding:25px 10px}.brand{font-size:0;padding:0 0 35px;text-align:center}.brand:after{content:'TB';font-size:15px}.nav a{justify-content:center;padding:11px}.nav .text,.mqtt-state{display:none}.nav-foot{display:none}main{padding:27px 22px}.summary{grid-template-columns:repeat(2,1fr)}.metric.primary{grid-column:span 2}.layout{grid-template-columns:1fr}}@media(max-width:500px){aside{display:none}main{padding:23px 15px}.summary{gap:10px}.metric{height:105px;padding:15px}.metric-value{font-size:21px}.move-grid{grid-template-columns:repeat(3,1fr)}.top{margin-bottom:20px}}
   </style>
 </head>
 <body>
-  <main>
-    <header>
-      <div><h1>TinyBee</h1><p>Điều khiển chuyển động 5 trục</p></div>
-      <div class="status"><i id="dot" class="dot"></i><span id="connection">Đang kết nối</span></div>
-    </header>
-
-    <section class="card">
-      <div class="card-title">Di chuyển</div>
-      <div class="caption">Nhập số step tương đối. Số âm chạy ngược chiều.</div>
-      <div class="axes">
-        <div class="field"><label>X</label><input class="axis" type="number" value="0"></div>
-        <div class="field"><label>Y</label><input class="axis" type="number" value="0"></div>
-        <div class="field"><label>Z</label><input class="axis" type="number" value="0"></div>
-        <div class="field"><label>E0</label><input class="axis" type="number" value="0"></div>
-        <div class="field"><label>E1</label><input class="axis" type="number" value="0"></div>
-      </div>
-      <div class="settings">
-        <div class="field"><label>Tốc độ tối đa · step/s</label><input id="speed" type="number" min="1" max="20000" value="5000"></div>
-        <div class="field"><label>Gia tốc · step/s²</label><input id="acceleration" type="number" min="1" max="100000" value="20000"></div>
-      </div>
-      <div class="buttons"><button onclick="moveOnce()">Chạy</button><button class="stop" onclick="send('STOP')">Dừng</button></div>
-    </section>
-
-    <section class="card">
-      <div class="card-title">Hàng đợi</div>
-      <div class="caption">Mỗi nhóm gồm X Y Z E0 E1, phân cách bằng dấu <code>|</code>.</div>
-      <textarea id="queue" spellcheck="false" aria-label="Hàng đợi lệnh">10 15 18 30 40| -10 0 0 0 0</textarea>
-      <div class="buttons"><button onclick="sendQueue()">Gửi hàng đợi</button><button class="secondary" onclick="send('ZERO')">Đặt vị trí 0</button></div>
-      <p class="help">Ví dụ: <code>10 15 18 30 40| -10 0 0 0 0</code>. TinyBee tự phát STEP; trình duyệt chỉ gửi thông số.</p>
-    </section>
-
-    <section class="card">
-      <div class="card-title">Trạng thái</div>
-      <div class="positions">
-        <div class="position"><b>X</b><span id="pos0">0</span></div><div class="position"><b>Y</b><span id="pos1">0</span></div><div class="position"><b>Z</b><span id="pos2">0</span></div><div class="position"><b>E0</b><span id="pos3">0</span></div><div class="position"><b>E1</b><span id="pos4">0</span></div>
-      </div>
-      <p id="motion" class="motion">Đang chờ trạng thái từ board.</p>
-    </section>
-  </main>
-
+  <div class="app">
+    <aside>
+      <div class="brand">TinyBee</div>
+      <nav class="nav"><a class="active" href="#control"><span class="icon">⌘</span><span class="text">Điều khiển</span></a><a href="#queue"><span class="icon">≡</span><span class="text">Hàng đợi</span></a><a href="#status"><span class="icon">◌</span><span class="text">Trạng thái</span></a></nav>
+      <div class="nav-foot"><a class="nav" href="#"><span class="icon">⚙</span><span class="text">Thiết lập</span></a></div>
+      <div class="mqtt-state"><span id="dot" class="dot"></span><span id="connection">Đang kết nối MQTT</span></div>
+    </aside>
+    <main>
+      <header class="top"><div><h1>Motion dashboard</h1><p>Điều khiển năm trục của MKS TinyBee</p></div><div class="profile"></div></header>
+      <section class="summary">
+        <div class="metric primary"><div class="metric-label">Trạng thái hệ thống</div><div id="summaryMoving" class="metric-value">Chờ kết nối</div><div class="metric-note"><b>●</b> TinyBee motion controller</div></div>
+        <div class="metric"><div class="metric-label">Tốc độ đặt</div><div id="summarySpeed" class="metric-value">5,000</div><div class="metric-note">step / giây</div></div>
+        <div class="metric"><div class="metric-label">Gia tốc đặt</div><div id="summaryAccel" class="metric-value">20,000</div><div class="metric-note">step / giây²</div></div>
+        <div class="metric"><div class="metric-label">Hàng đợi</div><div id="summaryQueue" class="metric-value">0</div><div class="metric-note">lệnh chờ xử lý</div></div>
+      </section>
+      <section class="layout">
+        <div>
+          <section id="control" class="card"><div class="title-row"><h2>Di chuyển đồng thời</h2><button class="pill" onclick="send('ZERO')">Đặt vị trí 0</button></div><div class="move-grid"><div class="field"><label>X · STEP</label><input class="axis" type="number" value="0"></div><div class="field"><label>Y · STEP</label><input class="axis" type="number" value="0"></div><div class="field"><label>Z · STEP</label><input class="axis" type="number" value="0"></div><div class="field"><label>E0 · STEP</label><input class="axis" type="number" value="0"></div><div class="field"><label>E1 · STEP</label><input class="axis" type="number" value="0"></div></div><div class="settings"><div class="field"><label>TỐC ĐỘ TỐI ĐA · STEP/S</label><input id="speed" type="number" min="1" max="20000" value="5000"></div><div class="field"><label>GIA TỐC · STEP/S²</label><input id="acceleration" type="number" min="1" max="100000" value="20000"></div></div><div class="actions"><button onclick="moveOnce()">Chạy chuyển động</button><button class="ghost" onclick="send('STOP')">Dừng ngay</button></div></section>
+          <section id="queue" class="card queue-card"><div class="title-row"><h2>Hàng đợi chuyển động</h2><button class="pill dark" onclick="sendQueue()">Gửi lệnh</button></div><textarea id="queue" spellcheck="false">10 15 18 30 40| -10 0 0 0 0</textarea><p class="hint">Mỗi nhóm gồm năm số: X, Y, Z, E0, E1. Dùng <b>|</b> để phân tách các lệnh. Số âm là chiều ngược.</p></section>
+        </div>
+        <section id="status" class="card"><div class="title-row"><h2>Vị trí hiện tại</h2><button class="pill" onclick="send('STATUS')">Làm mới</button></div><div class="position-table"><div class="position"><b>X axis</b><span id="pos0">0 step</span></div><div class="position"><b>Y axis</b><span id="pos1">0 step</span></div><div class="position"><b>Z axis</b><span id="pos2">0 step</span></div><div class="position"><b>E0 axis</b><span id="pos3">0 step</span></div><div class="position"><b>E1 axis</b><span id="pos4">0 step</span></div></div><div class="live"><label>CHUYỂN ĐỘNG HIỆN TẠI</label><strong id="motion">Đang chờ trạng thái từ board</strong></div><div class="divider"></div><div class="caption">Các trục chạy nội suy đồng thời. Xung STEP được tạo trực tiếp trên TinyBee.</div><div class="axis-list"><span>X</span><span>Y</span><span>Z</span><span>E0</span><span>E1</span></div></section>
+      </section>
+    </main>
+  </div>
   <script>
-    // Trang này là static và dùng được trực tiếp trên GitHub Pages.
-    const MQTT_URL = 'wss://broker.hivemq.com:8884/mqtt';
-    const COMMAND_TOPIC = 'tinybee/test123/axes/cmd';
-    const STATE_TOPIC = 'tinybee/test123/axes/state';
-    const $ = id => document.getElementById(id);
-    const client = mqtt.connect(MQTT_URL, { clientId: 'tinybee-web-' + crypto.getRandomValues(new Uint32Array(1))[0].toString(16), clean: true, reconnectPeriod: 3000 });
-
-    function connection(text, state) { $('connection').textContent = text; $('dot').className = 'dot ' + state; }
-    function send(command) { if (!client.connected) return alert('MQTT chưa kết nối.'); client.publish(COMMAND_TOPIC, command); }
-    function applySettings() {
-      const speed = Math.min(20000, Math.max(1, Number($('speed').value) || 5000));
-      const accel = Math.min(100000, Math.max(1, Number($('acceleration').value) || 20000));
-      send('SPEED ' + speed); send('ACCEL ' + accel);
-    }
-    function moveOnce() { applySettings(); send([...document.querySelectorAll('.axis')].map(item => parseInt(item.value, 10) || 0).join(' ')); }
-    function sendQueue() {
-      const commands = $('queue').value.trim();
-      if (!commands) return;
-      if (!commands.split('|').every(part => part.trim().split(/\s+/).length === 5)) return alert('Mỗi lệnh phải có đúng 5 số: X Y Z E0 E1.');
-      applySettings(); send(commands);
-    }
-    client.on('connect', () => { connection('Đã kết nối', 'online'); client.subscribe(STATE_TOPIC); send('STATUS'); });
-    client.on('reconnect', () => connection('Đang kết nối lại', ''));
-    client.on('close', () => connection('Đã ngắt', ''));
-    client.on('error', () => connection('Lỗi MQTT', 'error'));
-    client.on('message', (topic, payload) => {
-      if (topic !== STATE_TOPIC) return;
-      try { const state = JSON.parse(payload.toString()); state.position.forEach((value, index) => $('pos' + index).textContent = value); $('motion').textContent = (state.moving ? 'Đang chạy' : 'Đã dừng') + ' · còn ' + state.remaining + ' step · ' + state.speed + ' step/s · hàng đợi ' + state.queue; } catch (error) { console.error(error); }
-    });
+    const MQTT_URL='wss://broker.hivemq.com:8884/mqtt',COMMAND_TOPIC='tinybee/test123/axes/cmd',STATE_TOPIC='tinybee/test123/axes/state';
+    const $=id=>document.getElementById(id),format=n=>Number(n).toLocaleString('en-US');
+    const client=mqtt.connect(MQTT_URL,{clientId:'tinybee-web-'+crypto.getRandomValues(new Uint32Array(1))[0].toString(16),clean:true,reconnectPeriod:3000});
+    function connection(text,state=''){ $('connection').textContent=text;$('dot').className='dot '+state; }
+    function send(command){if(!client.connected)return alert('MQTT chưa kết nối.');client.publish(COMMAND_TOPIC,command)}
+    function settings(){const speed=Math.min(20000,Math.max(1,Number($('speed').value)||5000)),accel=Math.min(100000,Math.max(1,Number($('acceleration').value)||20000));$('summarySpeed').textContent=format(speed);$('summaryAccel').textContent=format(accel);send('SPEED '+speed);send('ACCEL '+accel)}
+    function moveOnce(){settings();send([...document.querySelectorAll('.axis')].map(item=>parseInt(item.value,10)||0).join(' '))}
+    function sendQueue(){const commands=$('queue').value.trim();if(!commands)return;if(!commands.split('|').every(part=>part.trim().split(/\s+/).length===5))return alert('Mỗi lệnh phải gồm đúng năm số: X Y Z E0 E1.');settings();send(commands)}
+    client.on('connect',()=>{connection('Đã kết nối','online');client.subscribe(STATE_TOPIC);send('STATUS')});client.on('reconnect',()=>connection('Đang kết nối lại'));client.on('close',()=>connection('Đã ngắt'));client.on('error',()=>connection('Lỗi MQTT','error'));
+    client.on('message',(topic,payload)=>{if(topic!==STATE_TOPIC)return;try{const state=JSON.parse(payload.toString());state.position.forEach((value,index)=>$('pos'+index).textContent=value+' step');$('summaryMoving').textContent=state.moving?'Đang chạy':'Sẵn sàng';$('summaryQueue').textContent=state.queue;$('summarySpeed').textContent=format(state.maxSpeed);$('summaryAccel').textContent=format(state.acceleration);$('motion').textContent=(state.moving?'Đang chạy':'Đã dừng')+' · còn '+state.remaining+' step · '+state.speed+' step/s'}catch(error){console.error(error)}});
   </script>
 </body>
 </html>
