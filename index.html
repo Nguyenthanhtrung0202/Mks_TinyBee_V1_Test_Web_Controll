@@ -24,7 +24,7 @@
         <article class="card">
           <div class="section-head"><div><h2>Di chuyển tuyệt đối</h2><p>Nhập tọa độ đích theo mm, tính từ mốc Home. Board chặn lệnh vượt hành trình đã cấu hình.</p></div><div id="liveState" class="live-state">Chờ board</div></div>
           <div class="axis-inputs"><div class="field"><label>X · MM</label><input class="axis" type="number" min="0" step="0.01" value="0"></div><div class="field"><label>Y · MM</label><input class="axis" type="number" min="0" step="0.01" value="0"></div><div class="field"><label>Z · MM</label><input class="axis" type="number" min="0" step="0.01" value="0"></div><div class="field"><label>E0 · MM</label><input class="axis" type="number" min="0" step="0.01" value="0"></div><div class="field"><label>E1 · MM</label><input class="axis" type="number" min="0" step="0.01" value="0"></div></div>
-          <div class="settings"><div class="field"><label>TỐC ĐỘ TỐI ĐA · STEP/S</label><input id="speed" type="number" min="1" max="20000" value="5000"></div><div class="field"><label>GIA TỐC · STEP/S²</label><input id="acceleration" type="number" min="0" max="100000" value="20000"></div></div>
+          <div class="settings"><div class="field"><label>TỐC ĐỘ TỐI ĐA · STEP/S</label><input id="speed" type="number" min="1" max="50000" step="1" value="5000"></div><div class="field"><label>GIA TỐC · STEP/S²</label><input id="acceleration" type="number" min="0" max="100000" value="20000"></div></div>
           <div class="actions"><button class="primary" onclick="moveOnce()">Chạy chuyển động</button><button class="stop" onclick="send('STOP')">Dừng</button></div>
         </article>
         <article class="card queue-card">
@@ -44,12 +44,13 @@
   </main>
   <script>
     const MQTT_URL='wss://broker.hivemq.com:8884/mqtt',COMMAND_TOPIC='tinybee/test123/axes/cmd',STATE_TOPIC='tinybee/test123/axes/state',AVAILABILITY_TOPIC='tinybee/test123/axes/availability';
+    const MAX_SPEED=50000;
     const $=id=>document.getElementById(id);let queuePaused=false;
     const client=mqtt.connect(MQTT_URL,{clientId:'tinybee-web-'+crypto.getRandomValues(new Uint32Array(1))[0].toString(16),clean:true,reconnectPeriod:3000});
     function connection(text,state=''){ $('connection').textContent=text;$('dot').className='dot '+state; }
     function boardPresence(online){connection(online?'TinyBee đang trực tuyến':'TinyBee đang ngoại tuyến',online?'online':'error')}
     function send(command){if(!client.connected)return alert('MQTT chưa kết nối.');if(!client.publish(COMMAND_TOPIC,command))return alert('Không gửi được lệnh MQTT.');$('liveState').textContent='Đã gửi lệnh, chờ TinyBee xác nhận…'}
-    function settings(){const speed=Math.min(20000,Math.max(1,Number($('speed').value)||5000)),accel=Math.min(100000,Math.max(0,Number($('acceleration').value)||0));$('speed').value=speed;$('acceleration').value=accel;send('SPEED '+speed);send('ACCEL '+accel)}
+    function settings(){const speed=Math.trunc(Math.min(MAX_SPEED,Math.max(1,Number($('speed').value)||5000))),accel=Math.trunc(Math.min(100000,Math.max(0,Number($('acceleration').value)||0)));$('speed').value=speed;$('acceleration').value=accel;send('SPEED '+speed);send('ACCEL '+accel)}
     function moveOnce(){settings();send([...document.querySelectorAll('.axis')].map(item=>Number(item.value)||0).join(' '))}
     function sendQueue(){const commands=$('queue').value.trim();if(!commands)return;const valid=commands.split('|').every(part=>{const values=part.trim().split(/\s+/).map(Number);return values.length===5&&values.every(value=>Number.isFinite(value)&&value>=0)});if(!valid)return alert('Mỗi lệnh phải gồm đúng 5 tọa độ mm không âm: X Y Z E0 E1.');settings();send(commands)}
     function setHome(){if(confirm('Đặt vị trí hiện tại làm Home 0 mm cho cả năm trục?'))send('HOME')}
